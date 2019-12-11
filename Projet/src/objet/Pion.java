@@ -3,16 +3,21 @@ package objet;
 import javafx.animation.Timeline;
 import javafx.scene.shape.Circle;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class Pion extends Circle {
     public int ligne, colonne;
     public int equipe;
     private static final int espacement = 30;
     public int chemin = 0; // CheminVert = 1, CheminJaune = 2 et 3 si il est sur les 2
+    public List<EmplacementPion> cheminASuivre;
     Timeline animation;
 
     public Pion(int i, int j){
         ligne = i;
         colonne = j;
+        cheminASuivre = new ArrayList<EmplacementPion>();
     }
 
     public void updatePos(){
