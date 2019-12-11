@@ -22,25 +22,29 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
+import static java.lang.Math.abs;
+
 public class ApplicationSurakarta extends javafx.application.Application implements EventHandler<MouseEvent> {
-    private Group troupe;
+    private Group troupe; // Group qui va permettre d'afficher la totalité des objets sur la scène
     private List<EmplacementPion> emplacements;
     private List<Pion> pions;
     private static final Color equipe1 = Color.RED, equipe2 = Color.BLUE;
-    private static final Color couleur1 = Color.GREEN, couleur2 = Color.YELLOW;
-    private Pion pionSelected = null;
-    private EmplacementPion emplacementPionSelected = null;
-    private static final int espacement = 30;
-    private List<EmplacementPion> cheminVert;
-    private List<EmplacementPion> cheminJaune;
-    private int equipeQuiJoue = 0;
-    private Text texte;
+    private static final Color couleur1 = Color.GREEN, couleur2 = Color.YELLOW; // Couleur 1 = Chemin 1 & Couleur 2 = Chemin 2
+    private Pion pionSelected = null; // Pion qui est sélectionné
+    private EmplacementPion emplacementPionSelected = null; // EmplacementPion qui est sélectionné
+    private static final int espacement = 30; // Espacement pour écrire un texte en haut
+    private List<EmplacementPion> cheminVert; // Chemin 1
+    private List<EmplacementPion> cheminJaune; // Chemin 2
+    private int equipeQuiJoue = 0; // Décide quelle équipe va jouer
+    private Text texte; // Texte pour donner des indications
 
     @Override
     public void start(Stage primaryStage) throws Exception{
         initVar();
         creationPlateau();
-        changementEquipe();
+        changementEquipe(); // Choisi une équipe aléatoirement
+
+        //Définition de la scène
         Scene scene = new Scene(troupe, 1000, 1000, Color.BLACK);
         primaryStage.setTitle("Jeu du Surakarta");
         primaryStage.setResizable(false);
@@ -56,7 +60,6 @@ public class ApplicationSurakarta extends javafx.application.Application impleme
         creationPion();
         creationChemins();
         updateChemins();
-        affichagePions();
     }
 
     void creationPlateau(){
@@ -68,18 +71,6 @@ public class ApplicationSurakarta extends javafx.application.Application impleme
         Timeline littleCycle = new Timeline(new KeyFrame(Duration.millis(100),event-> deplacementPion() ));
         littleCycle.setCycleCount(Timeline.INDEFINITE);
         littleCycle.play();
-    }
-
-    void creationEmplacementPion(){
-        int ligne = 0, colonne = 0;
-        for(int i = 1; i<=36; i++){
-            EmplacementPion ep = new EmplacementPion(ligne, colonne);
-            emplacements.add(ep);
-            ligne++;
-            if(i%6 == 0) colonne++;
-            if(ligne == 6) ligne = 0;
-        }
-        //affichageEmplacements();
     }
 
     void creationChemins(){
@@ -127,13 +118,29 @@ public class ApplicationSurakarta extends javafx.application.Application impleme
         cheminJaune.add(emplacements.get(8));
         cheminJaune.add(emplacements.get(6));
 
-        affichageChemin(cheminVert);
-        affichageChemin(cheminJaune);
+        //affichageChemin(cheminVert);
+        //affichageChemin(cheminJaune);
     }
 
     void affichageChemin(List<EmplacementPion> Chemin){
         System.out.println("   Chemin =");
         for(EmplacementPion ep : Chemin) System.out.println(ep.ToString());
+    }
+
+    void creationEmplacementPion(){
+        int ligne = 0, colonne = 0;
+        for(int i = 1; i<=36; i++){
+            EmplacementPion ep = new EmplacementPion(ligne, colonne);
+            emplacements.add(ep);
+            colonne++;
+            if(i%6 == 0) ligne++;
+            if(colonne == 6) colonne = 0;
+        }
+        //affichageEmplacements();
+    }
+
+    private void affichageEmplacements(){
+        for(EmplacementPion ep : emplacements) System.out.println(ep.ToString());
     }
 
     void creationPion(){
@@ -158,13 +165,17 @@ public class ApplicationSurakarta extends javafx.application.Application impleme
         //affichagePions();
     }
 
+    private void affichagePions(){
+        for(Pion p : pions) System.out.println(p.ToString());
+    }
+
     void ajoutEmplacements(){
         int posX = 250, posY = 250 + espacement;
         int epaisseur = 10;
         int cpt = 25;
         for(EmplacementPion ep : emplacements){
-            ep.setCenterX(posX + ep.ligne * 100);
-            ep.setCenterY(posY + ep.colonne * 100);
+            ep.setCenterX(posX + ep.colonne * 100);
+            ep.setCenterY(posY + ep.ligne * 100);
             ep.setRadius(epaisseur);
             ep.setFill(Color.WHITE);
             ep.setOpacity(0.6);
@@ -172,10 +183,6 @@ public class ApplicationSurakarta extends javafx.application.Application impleme
             ep.setOnMouseClicked(this::handle);
             troupe.getChildren().add(ep);
         }
-    }
-
-    private void affichageEmplacements(){
-        for(EmplacementPion ep : emplacements) System.out.println(ep.ToString());
     }
 
     void ajoutPions(){
@@ -196,10 +203,6 @@ public class ApplicationSurakarta extends javafx.application.Application impleme
             p.setSmooth(true);
             troupe.getChildren().add(p);
         }
-    }
-
-    private void affichagePions(){
-        for(Pion p : pions) System.out.println(p.ToString());
     }
 
     void ajoutArcs(){
@@ -362,6 +365,7 @@ public class ApplicationSurakarta extends javafx.application.Application impleme
                 }
                 //System.out.println("Equipe adverse {" + emplacementPionSelected.ToString() + "}");
                 if(pionPrenable(pionSelected, pion)){
+                    System.out.println("Pion " + pion.ToString() + " pris");
                     removePionEmplacement(pionSelected);
                     pionSelected.ligne = pion.ligne;
                     pionSelected.colonne = pion.colonne;
@@ -373,6 +377,7 @@ public class ApplicationSurakarta extends javafx.application.Application impleme
                     pionSelected = null;
                     emplacementPionSelected = null;
                 }
+                else System.out.println("Pion " + pion.ToString() + " imprenable");
             } else clicSurPion((Pion)o);
         }
         if(o instanceof EmplacementPion) clicSurEmplacement((EmplacementPion)o);
@@ -398,7 +403,87 @@ public class ApplicationSurakarta extends javafx.application.Application impleme
     }
 
     private boolean pasDePionChemin(Pion pionPrenant, Pion pionMenace) {
+        List<EmplacementPion> cheminLePlusCourt = cheminLePlusCourt(pionPrenant, pionMenace);
+        if(cheminLePlusCourt == null){
+            System.out.println("   Pas de chemin le plus court");
+            return false;
+        }
         return true;
+    }
+
+    private List<EmplacementPion> cheminLePlusCourt(Pion pionPrenant, Pion pionMenace) {
+        List<EmplacementPion> cheminCroissant = new ArrayList<EmplacementPion>();
+        List<EmplacementPion> cheminDecroissant = new ArrayList<EmplacementPion>();
+        Boolean obstacleCroissant = false, obstacleDecroissant = false;
+        int init, cpt = 0, cpt2 = 0;
+        switch (pionMenace.chemin){
+            case 1:
+                init = cheminVert.indexOf(emplacementDepuisPion(pionMenace, cheminVert));
+                for(int i = 0; i < 20; i++){
+                    init++;
+                    if(init > 19) init = 0;
+                    if(cheminVert.get(i).p != null){
+                        obstacleCroissant = true;
+                        break;
+                    }
+                    else cheminCroissant.add(cheminVert.get(i));
+                    if(cheminVert.get(i).p == pionMenace) break;
+                }
+                init = cheminVert.indexOf(emplacementDepuisPion(pionMenace, cheminVert));
+                for(int i = 0; i < 20; i++){
+                    init--;
+                    if(init < 0) init = 19;
+                    if(cheminVert.get(i).p != null){
+                        obstacleDecroissant = true;
+                        break;
+                    }
+                    else cheminDecroissant.add(cheminVert.get(i));
+                    if(cheminVert.get(i).p == pionMenace) break;
+                }
+                break;
+            case 2:
+                init = cheminJaune.indexOf(emplacementDepuisPion(pionMenace, cheminJaune));
+                for(int i = 0; i < 20; i++){
+                    init++;
+                    if(init > 19) init = 0;
+                    if(cheminJaune.get(i).p != null){
+                        obstacleCroissant = true;
+                        break;
+                    }
+                    else cheminCroissant.add(cheminJaune.get(i));
+                    if(cheminJaune.get(i).p == pionMenace) break;
+                }
+                init = cheminJaune.indexOf(emplacementDepuisPion(pionMenace, cheminJaune));
+                for(int i = 0; i < 20; i++){
+                    init--;
+                    if(init < 0) init = 19;
+                    if(cheminJaune.get(i).p != null){
+                        obstacleDecroissant = true;
+                        break;
+                    }
+                    else cheminDecroissant.add(cheminJaune.get(i));
+                    if(cheminJaune.get(i).p == pionMenace) break;
+                }
+                break;
+            case 3:
+                Pion pionMenaceChemin1 = new Pion(pionPrenant.ligne, pionPrenant.colonne);
+                pionMenaceChemin1.chemin = 1;
+                Pion pionMenaceChemin2 = new Pion(pionPrenant.ligne, pionPrenant.colonne);
+                pionMenaceChemin2.chemin = 2;
+                return plusPetiteListe(cheminLePlusCourt(pionPrenant, pionMenaceChemin1), cheminLePlusCourt(pionPrenant, pionMenaceChemin2));
+            default:
+                return null;
+        }
+        if(obstacleCroissant && obstacleDecroissant) return null;
+        return plusPetiteListe(cheminCroissant, cheminDecroissant);
+    }
+
+    private List<EmplacementPion> plusPetiteListe(List<EmplacementPion> cheminCroissant, List<EmplacementPion> cheminDecroissant) {
+        if(cheminCroissant == null && cheminDecroissant == null) return null;
+        if(cheminCroissant != null && cheminDecroissant == null) return cheminCroissant;
+        if(cheminCroissant == null && cheminDecroissant != null) return cheminDecroissant;
+        if(cheminCroissant.size() > cheminDecroissant.size()) return cheminDecroissant;
+        else return cheminCroissant;
     }
 
     private void detruirePion(Pion pion) {
@@ -409,7 +494,7 @@ public class ApplicationSurakarta extends javafx.application.Application impleme
     }
 
     public void clicSurPion(Pion p){
-        System.out.println(p.ToString()+" pressé");
+        //System.out.println(p.ToString()+" pressé");
         if(pionSelected != null){
             if(pionSelected.equipe == 1) pionSelected.setFill(equipe1);
             else if(pionSelected.equipe == 2) pionSelected.setFill(equipe2);
@@ -440,8 +525,11 @@ public class ApplicationSurakarta extends javafx.application.Application impleme
     Boolean deplacementPossible(Pion p, EmplacementPion ep){
         if(emplacementPionSelected.p == null) {
             int diffLigne = p.ligne - ep.ligne, diffColonne = p.colonne - ep.colonne;
-            //System.out.println("diffLigne = " + diffLigne + ", diffColonne = " + diffColonne);
-            if ((diffLigne < -1 || diffLigne > 1) || (diffColonne < -1 || diffColonne > 1)) return false;
+            if (abs(diffLigne) > 1 || abs(diffColonne) > 1){
+                //System.out.println("Déplacement impossible");
+                return false;
+            }
+            //System.out.println("Déplacement possible");
             return true;
         }
         return false;
@@ -450,8 +538,8 @@ public class ApplicationSurakarta extends javafx.application.Application impleme
     public void animationPion(){
         long tempo = 500;
         Timeline timeline = new Timeline();
-        int xdest = 250 + emplacementPionSelected.ligne * 100;
-        int ydest = 250 + espacement + emplacementPionSelected.colonne * 100;
+        int xdest = 250 + emplacementPionSelected.colonne * 100;
+        int ydest = 250 + espacement + emplacementPionSelected.ligne * 100;
         KeyFrame bougePion = new KeyFrame(new Duration(tempo),
                 new KeyValue(pionSelected.centerXProperty(), xdest),
                 new KeyValue(pionSelected.centerYProperty(), ydest));
@@ -500,13 +588,7 @@ public class ApplicationSurakarta extends javafx.application.Application impleme
     public void deplacementPion(){
         if(emplacementPionSelected != null && pionSelected != null){
             if(deplacementPossible(pionSelected, emplacementPionSelected)){
-                EmplacementPion ancien = null;
-                for(EmplacementPion ep : emplacements){
-                    if(ep.p == pionSelected){
-                        ancien = ep;
-                        break;
-                    }
-                }
+                EmplacementPion ancien = emplacementDepuisPion(pionSelected, emplacements);
                 if(ancien != null) ancien.p = null; // On enleve le pion de son ancien emplacement
                 pionSelected.ligne = emplacementPionSelected.ligne;
                 pionSelected.colonne = emplacementPionSelected.colonne;
@@ -518,6 +600,15 @@ public class ApplicationSurakarta extends javafx.application.Application impleme
             emplacementPionSelected = null; // On devra rechoisir un emplacement
             updateChemins();
         }
+    }
+
+    private EmplacementPion emplacementDepuisPion(Pion p, List<EmplacementPion> lEmplacements) {
+        for(EmplacementPion ep : lEmplacements){
+            if(ep.p == p){
+                return ep;
+            }
+        }
+        return null;
     }
 
     private void updateCouleurPion(Pion pionSelected) {
