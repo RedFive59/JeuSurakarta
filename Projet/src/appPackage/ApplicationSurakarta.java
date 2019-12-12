@@ -39,6 +39,7 @@ public class ApplicationSurakarta extends javafx.application.Application impleme
     private int equipeQuiJoue = 0; // Décide quelle équipe va jouer
     private Text texte; // Texte pour donner des indications
     private Rectangle cadre; // Cadre autour du texte
+    private EmplacementPion anciennePosition = null;
 
     @Override
     public void start(Stage primaryStage) throws Exception{
@@ -56,11 +57,11 @@ public class ApplicationSurakarta extends javafx.application.Application impleme
 
     private EmplacementPion emplacementDepuisPion(Pion p, List<EmplacementPion> lEmplacements) {
         if(p == null){
-            System.out.println("Pion inexistant");
+            //System.out.println("Pion inexistant");
             return null;
         }
         if(lEmplacements == null){
-            System.out.println("Liste vide");
+            //System.out.println("Liste vide");
             return null;
         }
         for(EmplacementPion ep : lEmplacements){
@@ -387,6 +388,7 @@ public class ApplicationSurakarta extends javafx.application.Application impleme
                 clicSurEmplacement(emplacementDepuisPion(pion, emplacements));
                 //System.out.println("Equipe adverse {" + emplacementPionSelected.ToString() + "}");
                 if(pionPrenable(pionSelected, pion)){
+                    anciennePosition = emplacementDepuisPion(pionSelected, emplacements);
                     removePionEmplacement(pionSelected);
                     animationPionPrise();
                     detruirePion(pion);
@@ -720,11 +722,11 @@ public class ApplicationSurakarta extends javafx.application.Application impleme
         path.getElements().add(new MoveTo(x,y));
         int tailleChemin = pionSelected.cheminASuivre.size();
         for(int i = 0; i < tailleChemin; i++){
-            //System.out.println("Mouvement " + i);
+            //System.out.println(" Mouvement " + i);
             EmplacementPion ep = pionSelected.cheminASuivre.get(i);
             x = 250 + ep.colonne * 100;
             y = 250 + espacement + ep.ligne * 100;
-            if(ep.liaisonArc && (i != tailleChemin-1 || tailleChemin == 1)){
+            if(ep.liaisonArc && (anciennePosition.liaisonArc || i == tailleChemin-1 || tailleChemin == 1)){
                 // Cas où l'on doit faire une animation d'arc
                 ArcTo arcTo = new ArcTo();
                 arcTo.setX(x);
@@ -741,6 +743,7 @@ public class ApplicationSurakarta extends javafx.application.Application impleme
                 arcTo.setLargeArcFlag(true);
                 definitionSensRotation(arcTo, ep);
                 path.getElements().add(arcTo);
+                anciennePosition = ep;
             } else {
                 //Cas où l'on passe d'un point à l'autre
                 //System.out.println("Ligne vers ["+x+", "+y+"]");
@@ -748,8 +751,10 @@ public class ApplicationSurakarta extends javafx.application.Application impleme
                 lineTo.setX(x);
                 lineTo.setY(y);
                 path.getElements().add(lineTo);
+                anciennePosition = ep;
             }
         }
+        anciennePosition = null;
         return path;
     }
 
