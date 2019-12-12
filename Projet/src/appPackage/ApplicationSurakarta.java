@@ -55,6 +55,14 @@ public class ApplicationSurakarta extends javafx.application.Application impleme
     }
 
     private EmplacementPion emplacementDepuisPion(Pion p, List<EmplacementPion> lEmplacements) {
+        if(p == null){
+            System.out.println("Pion inexistant");
+            return null;
+        }
+        if(lEmplacements == null){
+            System.out.println("Liste vide");
+            return null;
+        }
         for(EmplacementPion ep : lEmplacements){
             if(ep.p == p){
                 return ep;
@@ -381,7 +389,6 @@ public class ApplicationSurakarta extends javafx.application.Application impleme
                 if(pionPrenable(pionSelected, pion)){
                     removePionEmplacement(pionSelected);
                     animationPionPrise();
-                    emplacementPionSelected.p = pionSelected;
                     detruirePion(pion);
                     updateChemins();
                     //pionSelected.cheminASuivre = cheminLePlusCourt(pionSelected, pion);
@@ -411,7 +418,7 @@ public class ApplicationSurakarta extends javafx.application.Application impleme
             }
         }
         if(pionMenace.chemin == 3) return pasDePionChemin(pionPrenant, pionMenace);
-        System.out.println("Les 2 pions n'ont aucun chemin en commun /!\\");
+        //System.out.println("Les 2 pions n'ont aucun chemin en commun /!\\");
         return false;
     }
 
@@ -436,7 +443,7 @@ public class ApplicationSurakarta extends javafx.application.Application impleme
         List<EmplacementPion> cheminDecroissant = new ArrayList<EmplacementPion>();
         List<EmplacementPion> chemin = null;
         Boolean obstacleCroissant = false, obstacleDecroissant = false, passeParArc1 = false, passeParArc2 = false;
-        int init, cpt = 0, cpt2 = 0, max;
+        int init = 0, cpt = 0, cpt2 = 0, max;
         switch (pionMenace.chemin){
             case 1:
                 //System.out.println("\tChemin vert -");
@@ -457,8 +464,11 @@ public class ApplicationSurakarta extends javafx.application.Application impleme
                 return null;
         }
         max = chemin.size();
+        //Vérification bug de prise
+        if(emplacementDepuisPion(pionPrenant, chemin) == null) return null;
         //Tests du chemin sélectionné dans les 2 sens
         init = chemin.indexOf(emplacementDepuisPion(pionPrenant, chemin));
+        if(emplacementDepuisPion(pionPrenant, chemin).liaisonArc && chemin.get(0).liaisonArc) passeParArc1 = true;
         for(int i = 0; i < max; i++){
             init++;
             if(init > max-1) init = 0;
@@ -477,6 +487,7 @@ public class ApplicationSurakarta extends javafx.application.Application impleme
             cheminCroissant.add(ep);
         }
         init = chemin.indexOf(emplacementDepuisPion(pionPrenant, chemin));
+        if(emplacementDepuisPion(pionPrenant, chemin).liaisonArc && chemin.get(0).liaisonArc) passeParArc2 = true;
         for(int i = 0; i < max; i++){
             init--;
             if(init < 0) init = max-1;
@@ -504,6 +515,7 @@ public class ApplicationSurakarta extends javafx.application.Application impleme
                 passeParArc1 = false;
                 passeParArc2 = false;
                 init = chemin.lastIndexOf(emplacementDepuisPion(pionPrenant, chemin));
+                if(emplacementDepuisPion(pionPrenant, chemin).liaisonArc && chemin.get(0).liaisonArc) passeParArc1 = true;
                 for(int i = 0; i < max; i++){
                     init++;
                     if(init > max-1) init = 0;
@@ -522,6 +534,7 @@ public class ApplicationSurakarta extends javafx.application.Application impleme
                     cheminCroissant.add(ep);
                 }
                 init = chemin.lastIndexOf(emplacementDepuisPion(pionPrenant, chemin));
+                if(emplacementDepuisPion(pionPrenant, chemin).liaisonArc && chemin.get(0).liaisonArc) passeParArc2 = true;
                 for(int i = 0; i < max; i++){
                     init--;
                     if(init < 0) init = max-1;
@@ -541,14 +554,18 @@ public class ApplicationSurakarta extends javafx.application.Application impleme
                 }
             }
         }
-        //System.out.println("Test Chemin " + pionMenace.chemin + " fait avec comme résultat : obstacleCroissant(" + obstacleCroissant + "), obstacleDecroissant(" + obstacleDecroissant + ")");
+        //System.out.println("Test Chemin " + pionMenace.chemin + " fait avec comme résultat : obstacleCroissant(" + obstacleCroissant + ") et passeParArc1("+passeParArc1+"), obstacleDecroissant(" + obstacleDecroissant + ") et passeParArc2("+passeParArc2+")");
         if(obstacleCroissant && obstacleDecroissant) return null;
         if(!obstacleCroissant && passeParArc1){
             if(!obstacleDecroissant && passeParArc2) return plusPetiteListe(cheminCroissant, cheminDecroissant);
-            else return cheminCroissant;
+            else {
+                if(cheminCroissant.get(0).p == pionMenace && !cheminCroissant.get(0).liaisonArc) return null;
+                return cheminCroissant;
+            }
         }
         if(!obstacleDecroissant && passeParArc2){
-            return cheminDecroissant;
+            if(cheminDecroissant.get(0).p == pionMenace && !cheminDecroissant.get(0).liaisonArc) return null;
+            else return cheminDecroissant;
         }
         return null;
     }
@@ -677,12 +694,13 @@ public class ApplicationSurakarta extends javafx.application.Application impleme
         transition.play();
         pionSelected.ligne = emplacementPionSelected.ligne;
         pionSelected.colonne = emplacementPionSelected.colonne;
+        emplacementPionSelected.p = pionSelected;
         pionSelected.updatePos();
         changementEquipe();
     }
 
     private PathTransition generatePathTransition(final Path path){
-        double tempo = 600 * pionSelected.cheminASuivre.size();
+        double tempo = 1200 * pionSelected.cheminASuivre.size();
         //System.out.println("Size = " + pionSelected.cheminASuivre.size());
         final PathTransition pathTransition = new PathTransition();
         pathTransition.setDuration(Duration.millis(tempo));
@@ -702,32 +720,30 @@ public class ApplicationSurakarta extends javafx.application.Application impleme
         path.getElements().add(new MoveTo(x,y));
         int tailleChemin = pionSelected.cheminASuivre.size();
         for(int i = 0; i < tailleChemin; i++){
+            //System.out.println("Mouvement " + i);
             EmplacementPion ep = pionSelected.cheminASuivre.get(i);
-            if(ep.liaisonArc){
-                if(i != tailleChemin-1 || tailleChemin == 1){
-                    x = 250 + ep.colonne * 100;
-                    y = 250 + espacement + ep.ligne * 100;
-                    // Cas où l'on doit faire une animation d'arc
-                    ArcTo arcTo = new ArcTo();
-                    arcTo.setX(x);
-                    arcTo.setY(y);
-                    if(numChemin == 1){
-                        arcTo.setRadiusX(rotation1);
-                        arcTo.setRadiusY(rotation1);
-                    } else
-                    if(numChemin == 2){
-                        arcTo.setRadiusX(rotation2);
-                        arcTo.setRadiusY(rotation2);
-                    }
-                    arcTo.setLargeArcFlag(true);
-                    arcTo.setSweepFlag(false);
-                    path.getElements().add(arcTo);
+            x = 250 + ep.colonne * 100;
+            y = 250 + espacement + ep.ligne * 100;
+            if(ep.liaisonArc && (i != tailleChemin-1 || tailleChemin == 1)){
+                // Cas où l'on doit faire une animation d'arc
+                ArcTo arcTo = new ArcTo();
+                arcTo.setX(x);
+                arcTo.setY(y);
+                //System.out.println("Arc vers ["+x+", "+y+"]");
+                if(numChemin == 1){
+                    arcTo.setRadiusX(rotation1);
+                    arcTo.setRadiusY(rotation1);
+                } else
+                if(numChemin == 2){
+                    arcTo.setRadiusX(rotation2);
+                    arcTo.setRadiusY(rotation2);
                 }
+                arcTo.setLargeArcFlag(true);
+                definitionSensRotation(arcTo, ep);
+                path.getElements().add(arcTo);
             } else {
                 //Cas où l'on passe d'un point à l'autre
-                x = 250 + ep.colonne * 100;
-                y = 250 + espacement + ep.ligne * 100;
-                //System.out.println("Deplacement vers ["+x+", "+y+"]");
+                //System.out.println("Ligne vers ["+x+", "+y+"]");
                 LineTo lineTo = new LineTo();
                 lineTo.setX(x);
                 lineTo.setY(y);
@@ -735,6 +751,57 @@ public class ApplicationSurakarta extends javafx.application.Application impleme
             }
         }
         return path;
+    }
+
+    private void definitionSensRotation(ArcTo arcTo, EmplacementPion ep) {
+        if(ep.ligne == 0){
+            if(ep.colonne == 1 || ep.colonne == 2){
+                // Rotation gauche haut
+                arcTo.setSweepFlag(true);
+                return;
+            }
+            if(ep.colonne == 3 || ep.colonne == 4){
+                // Rotation droite haut
+                arcTo.setSweepFlag(false);
+                return;
+            }
+        }
+        if(ep.ligne == 5){
+            if(ep.colonne == 1 || ep.colonne == 2){
+                // Rotation gauche bas
+                arcTo.setSweepFlag(false);
+                return;
+            }
+            if(ep.colonne == 3 || ep.colonne == 4){
+                // Rotation droite bas
+                arcTo.setSweepFlag(true);
+                return;
+            }
+        }
+        if(ep.colonne == 0){
+            if(ep.ligne == 1 || ep.ligne == 2){
+                // Rotation haut gauche
+                arcTo.setSweepFlag(false);
+                return;
+            }
+            if(ep.ligne == 3 || ep.ligne == 4){
+                // Rotation bas gauche
+                arcTo.setSweepFlag(true);
+                return;
+            }
+        }
+        if(ep.colonne == 5){
+            if(ep.ligne == 1 || ep.ligne == 2){
+                // Rotation haut droite
+                arcTo.setSweepFlag(true);
+                return;
+            }
+            if(ep.ligne == 3 || ep.ligne == 4){
+                // Rotation bas droite
+                arcTo.setSweepFlag(false);
+                return;
+            }
+        }
     }
 
     private int numChemin(List<EmplacementPion> cheminASuivre) {

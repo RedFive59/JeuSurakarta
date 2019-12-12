@@ -32,7 +32,7 @@ public class EmplacementPion extends Circle {
     }
 
     public String ToString(){
-        if(p != null) return "EmplacementPion["+ligne+","+colonne+"] contenant " + p.ToString();
-        else return "EmplacementPion["+ligne+","+colonne+"]";
+        if(p != null) return "EmplacementPion["+ligne+","+colonne+","+liaisonArc+"] contenant " + p.ToString();
+        else return "EmplacementPion["+ligne+","+colonne+","+liaisonArc+"]";
     }
 }
