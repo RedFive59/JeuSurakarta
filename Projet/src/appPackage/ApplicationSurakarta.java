@@ -19,33 +19,38 @@ import javafx.stage.StageStyle;
 import javafx.util.Duration;
 import objet.*;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Random;
+import java.util.*;
 
 import static java.lang.Math.abs;
 
+/**
+ * Cette classe nous permet de créer de l'application de jeu, dans celle-ci on gèrera les actions à réaliser,
+ * les animations de déplacement ainsi que les prises, on y gère aussi la scène pour l'affichage.
+ */
 public class ApplicationSurakarta extends javafx.application.Application implements EventHandler<MouseEvent> {
     private Group troupe; // Group qui va permettre d'afficher la totalité des objets sur la scène
-    private List<EmplacementPion> emplacements;
-    private List<Pion> pions;
-    private static final Color equipe1 = Color.RED, equipe2 = Color.BLUE;
+    private List<EmplacementPion> emplacements; // Liste des emplacements
+    public List<Pion> pions; // Liste des pions du plateau
+    private static final Color equipe1 = Color.RED, equipe2 = Color.BLUE; // Couleur des équipes
     private static final Color couleur1 = Color.GREEN, couleur2 = Color.YELLOW; // Couleur 1 = Chemin 1 & Couleur 2 = Chemin 2
-    private Pion pionSelected = null; // Pion qui est sélectionné
-    private EmplacementPion emplacementPionSelected = null; // EmplacementPion qui est sélectionné
+    public Pion pionSelected = null; // Pion qui est sélectionné
+    public EmplacementPion emplacementPionSelected = null; // EmplacementPion qui est sélectionné
     private static final int espacement = 30; // Espacement pour écrire un texte en haut
     private List<EmplacementPion> cheminVert; // Chemin 1
     private List<EmplacementPion> cheminJaune; // Chemin 2
-    private int equipeQuiJoue = 0; // Décide quelle équipe va jouer
-    private Text texte; // Texte pour donner des indications
-    private Rectangle cadre; // Cadre autour du texte
-    private EmplacementPion anciennePosition = null;
+    private EmplacementPion anciennePosition = null; // Mémoire de l'ancienne position d'un pion
+    private double tempsAnimation = 500; // Vitesse de déplacement d'un pion d'une case vers l'autre
+    private GestionPartie gp;
+    private Stage primaryStage;
+    public IA ia;
+    public String modeJeu = null;
+    private Group troupe2; // Group qui va permettre d'afficher la totalité des objets sur la scène
+    private Stage newWindow;
 
     @Override
     public void start(Stage primaryStage) throws Exception{
         initVar();
         creationPlateau();
-        changementEquipe(); // Choisi une équipe aléatoirement
 
         //Définition de la scène
         Scene scene = new Scene(troupe, 1000, 1000, Color.BLACK);
@@ -53,8 +58,74 @@ public class ApplicationSurakarta extends javafx.application.Application impleme
         primaryStage.setResizable(false);
         primaryStage.setScene(scene);
         primaryStage.show();
+        this.primaryStage = primaryStage;
+
+        //Scène du menu
+        troupe2 = new Group();
+        choixModeJeu();
+
+        //Définition de la scène
+        Scene scene2 = new Scene(troupe2, 1000, 300, Color.BLACK);
+        Stage newWindow = new Stage();
+        newWindow.setTitle("Menu");
+        newWindow.setScene(scene2);
+        newWindow.show();
+        this.newWindow = newWindow;
+
+        gp.texte.setFill(Color.GREY);
+        gp.texte.setText("Choisissez un mode de jeu");
     }
 
+    /**
+     * Méthode qui permet à l'utilisateur de choisir son mode de jeu
+     * @return
+     * Le mode de jeu (JvJ ou JvO)
+     */
+    private void choixModeJeu() {
+        Rectangle rect1 = new Rectangle();
+        rect1.setX(50);
+        rect1.setY(100);
+        rect1.setWidth(400);
+        rect1.setHeight(100);
+        rect1.setFill(Color.WHITE);
+        rect1.setId("JvJ");
+        rect1.setOnMouseClicked(this::handle);
+        troupe2.getChildren().add(rect1);
+
+        Text texte1 = new Text();
+        texte1 = new Text(50, 155, "Joueur VS Joueur");
+        texte1.setFont(new Font(20));
+        texte1.setTextAlignment(TextAlignment.CENTER);
+        texte1.setWrappingWidth(400);
+        troupe2.getChildren().add(texte1);
+
+        Rectangle rect2 = new Rectangle();
+        rect2.setX(550);
+        rect2.setY(100);
+        rect2.setWidth(400);
+        rect2.setHeight(100);
+        rect2.setFill(Color.WHITE);
+        rect2.setId("JvO");
+        rect2.setOnMouseClicked(this::handle);
+        troupe2.getChildren().add(rect2);
+
+        Text texte2 = new Text();
+        texte2 = new Text(550, 155, "Joueur VS Ordinateur");
+        texte2.setFont(new Font(20));
+        texte2.setTextAlignment(TextAlignment.CENTER);
+        texte2.setWrappingWidth(400);
+        troupe2.getChildren().add(texte2);
+    }
+
+    /**
+     * Méthode qui nous retourne l'emplacement d'un pion avec une liste d'emplacements donné
+     * @param p
+     * Pion concerné
+     * @param lEmplacements
+     * Liste où l'on cherche le pion ainsi que son emplacement
+     * @return
+     * Emplacement recherché
+     */
     private EmplacementPion emplacementDepuisPion(Pion p, List<EmplacementPion> lEmplacements) {
         if(p == null){
             //System.out.println("Pion inexistant");
@@ -72,7 +143,12 @@ public class ApplicationSurakarta extends javafx.application.Application impleme
         return null;
     }
 
+    /**
+     * Méthode qui initialise nos variables
+     * Elle crée les pions, chemins et emplacements
+     */
     void initVar(){
+        ia = new IA(this);
         troupe = new Group();
         emplacements = new ArrayList<EmplacementPion>();
         creationEmplacementPion();
@@ -80,8 +156,12 @@ public class ApplicationSurakarta extends javafx.application.Application impleme
         creationPion();
         creationChemins();
         updateChemins();
+        gp = new GestionPartie(modeJeu, this);
     }
 
+    /**
+     * Méthode où l'on ajoute au plateau les différents objets crée auparavant
+     */
     void creationPlateau(){
         ajoutLignes();
         ajoutArcs();
@@ -93,6 +173,10 @@ public class ApplicationSurakarta extends javafx.application.Application impleme
         littleCycle.play();
     }
 
+    /**
+     * Méthode qui définit les 2 chemins selon la position des cases
+     * Les chemins permettront de vérifier si la prise est possible
+     */
     void creationChemins(){
         cheminVert = new ArrayList<EmplacementPion>();
         cheminVert.add(emplacements.get(2));
@@ -150,16 +234,25 @@ public class ApplicationSurakarta extends javafx.application.Application impleme
         //affichageChemin(cheminJaune);
     }
 
+    /**
+     * Méthode toString() pour les chemins
+     * @param Chemin
+     * Chemin à afficher
+     */
     void affichageChemin(List<EmplacementPion> Chemin){
         System.out.println("   Chemin =");
-        for(EmplacementPion ep : Chemin) System.out.println(ep.ToString());
+        for(EmplacementPion ep : Chemin) System.out.println(ep.toString());
     }
 
+    /**
+     * Méthode de création des 36 emplacements de pions
+     */
     void creationEmplacementPion(){
         int ligne = 0, colonne = 0;
         for(int i = 1; i<=36; i++){
             EmplacementPion ep = new EmplacementPion(ligne, colonne);
             emplacements.add(ep);
+            ia.ajoutEmplacement(ep);
             colonne++;
             if(i%6 == 0) ligne++;
             if(colonne == 6) colonne = 0;
@@ -167,10 +260,16 @@ public class ApplicationSurakarta extends javafx.application.Application impleme
         //affichageEmplacements();
     }
 
+    /**
+     * Méthode toString() pour les emplacements
+     */
     private void affichageEmplacements(){
-        for(EmplacementPion ep : emplacements) System.out.println(ep.ToString());
+        for(EmplacementPion ep : emplacements) System.out.println(ep.toString());
     }
 
+    /**
+     * Méthode de création des 24 pions
+     */
     void creationPion(){
         int ligne = 0, colonne = 0;
         int numEmplacement = 0;
@@ -193,10 +292,16 @@ public class ApplicationSurakarta extends javafx.application.Application impleme
         //affichagePions();
     }
 
+    /**
+     * Méthode toString() pour les pions
+     */
     private void affichagePions(){
-        for(Pion p : pions) System.out.println(p.ToString());
+        for(Pion p : pions) System.out.println(p.toString());
     }
 
+    /**
+     * Méthode d'ajout des emplacements sur la scène
+     */
     void ajoutEmplacements(){
         int posX = 250, posY = 250 + espacement;
         int epaisseur = 10;
@@ -213,6 +318,9 @@ public class ApplicationSurakarta extends javafx.application.Application impleme
         }
     }
 
+    /**
+     * Méthode d'ajout des pions sur la scène
+     */
     void ajoutPions(){
         int epaisseur = 7;
         DropShadow dropShadow = new DropShadow();
@@ -233,6 +341,9 @@ public class ApplicationSurakarta extends javafx.application.Application impleme
         }
     }
 
+    /**
+     * Méthode d'ajout des courbures sur la scène
+     */
     void ajoutArcs(){
         int posX = 250, posY = 250 + espacement;
         int radius1 = 100, radius2 = 200;
@@ -280,6 +391,9 @@ public class ApplicationSurakarta extends javafx.application.Application impleme
         }
     }
 
+    /**
+     * Méthode d'ajout des lignes sur la scène
+     */
     void ajoutLignes(){
         int posStartX = 250, posEndX = 750;
         int posStartY = 250 + espacement, posEndY = 750 + espacement;
@@ -362,47 +476,82 @@ public class ApplicationSurakarta extends javafx.application.Application impleme
         }
     }
 
+    /**
+     * Méthode d'ajout du texte en haut de l'écran sur la scène
+     * Ce texte permet d'afficher quel équipe doit jouer
+     */
     public void ajoutTexte(){
-        cadre = new Rectangle();
-        cadre.setX(300);
-        cadre.setY(10);
-        cadre.setWidth(400);
-        cadre.setHeight(espacement);
-        cadre.setFill(Color.WHITE);
-        cadre.setStroke(Color.GOLDENROD);
-        cadre.setStrokeWidth(5);
-        troupe.getChildren().add(cadre);
+        gp.cadre = new Rectangle();
+        gp.cadre.setX(300);
+        gp.cadre.setY(10);
+        gp.cadre.setWidth(400);
+        gp.cadre.setHeight(espacement);
+        gp.cadre.setFill(Color.WHITE);
+        gp.cadre.setStroke(Color.GOLDENROD);
+        gp.cadre.setStrokeWidth(5);
+        troupe.getChildren().add(gp.cadre);
 
-        texte = new Text(300, 30, "Tour du joueur");
-        texte.setFont(new Font(20));
-        texte.setTextAlignment(TextAlignment.CENTER);
-        texte.setWrappingWidth(400);
-        troupe.getChildren().add(texte);
+        gp.texte = new Text(300, 30, "Tour du joueur");
+        gp.texte.setFont(new Font(20));
+        gp.texte.setTextAlignment(TextAlignment.CENTER);
+        gp.texte.setWrappingWidth(400);
+        troupe.getChildren().add(gp.texte);
     }
 
+    /**
+     * Méthode liée à l'implémentation de l'eventHandler sur la classe ApplicationSurakarta
+     * Elle permet de définir les actions à réaliser selon le type d'objet sur lequel on a cliqué
+     * @param me
+     * Event qui est évoqué au moment du clic
+     */
     public void handle(MouseEvent me) {
         Object o = me.getSource();
-        if(o instanceof Pion){
-            Pion pion = ((Pion) o);
-            if(pionSelected != null && pion.equipe != equipeQuiJoue){
-                clicSurEmplacement(emplacementDepuisPion(pion, emplacements));
-                //System.out.println("Equipe adverse {" + emplacementPionSelected.ToString() + "}");
-                if(pionPrenable(pionSelected, pion)){
-                    anciennePosition = emplacementDepuisPion(pionSelected, emplacements);
-                    removePionEmplacement(pionSelected);
-                    animationPionPrise();
-                    detruirePion(pion);
-                    updateChemins();
-                    //pionSelected.cheminASuivre = cheminLePlusCourt(pionSelected, pion);
-                    updateCouleurPion(pionSelected);
-                    pionSelected = null;
-                    emplacementPionSelected = null;
-                }
-            } else clicSurPion((Pion)o);
+        if(modeJeu != null) {
+            if(o instanceof Pion){
+                Pion pion = ((Pion) o);
+                // Vérification qu'un pion est sélectionné et que le nouveau pion sélectionné appartient à l'équipe adverse
+                if(pionSelected != null && pion.equipe != gp.equipeQuiJoue){
+                    clicSurEmplacement(emplacementDepuisPion(pion, emplacements));
+                    if(pionPrenable(pionSelected, pion)){
+                        anciennePosition = emplacementDepuisPion(pionSelected, emplacements);
+                        updateCouleurPion(pionSelected);
+                        detruirePion(pion);
+                        animationPionPrise();
+                        updateChemins();
+                        //pionSelected.cheminASuivre = cheminLePlusCourt(pionSelected, pion);
+                        pionSelected = null;
+                        emplacementPionSelected = null;
+                    }
+                } else clicSurPion((Pion)o);
+            }
+            if(o instanceof EmplacementPion) clicSurEmplacement((EmplacementPion)o);
+        } else
+        if(o instanceof Rectangle){
+            Rectangle r = ((Rectangle) o);
+            this.modeJeu = r.getId();
+            newWindow.close();
+            gp.changementEquipe();
+            if(modeJeu == "JvO") initIA();
         }
-        if(o instanceof EmplacementPion) clicSurEmplacement((EmplacementPion)o);
     }
 
+    /**
+     * Méthode d'initialisation de l'IA
+     * Elle ajoute les pions et donne son numéro d'équipe
+     */
+    private void initIA() {
+        if(gp.equipeQuiJoue == 1) ia.numEquipe = 2;
+        if(gp.equipeQuiJoue == 2) ia.numEquipe = 1;
+        //System.out.println("Equipe qui commence = " + gp.equipeQuiJoue);
+        //System.out.println("Equipe de l'IA = " + ia.numEquipe);
+        ia.ajoutPions();
+    }
+
+    /**
+     * Méthode qui retire un pion de son emplacement
+     * @param pion
+     * Pion recherché
+     */
     private void removePionEmplacement(Pion pion) {
         for(EmplacementPion ep : emplacements){
             if(ep.p == pion){
@@ -412,6 +561,15 @@ public class ApplicationSurakarta extends javafx.application.Application impleme
         }
     }
 
+    /**
+     * Méthode qui regarde sur quel chemin se trouve le pion prenant et vérifie ainsi grâce à la méthode pasDePionChemin si la prise est possible
+     * @param pionPrenant
+     * Pion qui cherche à prendre un autre pion
+     * @param pionMenace
+     * Pion qui est menacé d'être pris
+     * @return
+     * Booléen de décision
+     */
     private boolean pionPrenable(Pion pionPrenant, Pion pionMenace) {
         if(pionPrenant.chemin != 0 && pionPrenant.chemin == pionMenace.chemin) return pasDePionChemin(pionPrenant, pionMenace);
         if(pionPrenant.chemin == 3){
@@ -424,22 +582,86 @@ public class ApplicationSurakarta extends javafx.application.Application impleme
         return false;
     }
 
+    /**
+     * Méthode qui vérifie si il y a déjà un pion sur son chemin le plus court
+     * Elle vérifie également si les 2 pions ne sont pas sur la même ligne (et les 2 pions en bout de plateau) car cheminLePlusCourt ne le prend pas en compte
+     * @param pionPrenant
+     * Pion qui cherche à prendre un autre pion
+     * @param pionMenace
+     * Pion qui est menacé d'être pris
+     * @return
+     * Booléen de décision
+     */
     private boolean pasDePionChemin(Pion pionPrenant, Pion pionMenace) {
         List<EmplacementPion> cheminLePlusCourt = cheminLePlusCourt(pionPrenant, pionMenace);
-        if(cheminLePlusCourt == null){
-            return false;
-        }
-        /*
+        if(cheminLePlusCourt == null) return false;
+        if(cheminLePlusCourt.size() > 1 && (cheminMemeLigne(cheminLePlusCourt) || cheminMemeColonne(cheminLePlusCourt))) return false;
+
+        //Affichage du chemin le plus court
         System.out.print("cheminLePlusCourt - [");
         for(EmplacementPion ep : cheminLePlusCourt){
-            System.out.print(" " + ep.ToString() + "\n");
+            System.out.print(" " + ep.toString() + "\n");
         }
         System.out.println("]");
-        */
+
         pionPrenant.cheminASuivre = cheminLePlusCourt;
         return true;
     }
 
+    /**
+     * Méthode qui vérifie si 2 pions en extrémité sont sur la même ligne
+     * @param cheminLePlusCourt
+     * Chemin à vérifier
+     * @return
+     * Booléen de décision
+     */
+    private boolean cheminMemeLigne(List<EmplacementPion> cheminLePlusCourt) {
+        int cpt = 1;
+        EmplacementPion epPrec = emplacementDepuisPion(pionSelected, emplacements);
+        for(int i = 0; i<cheminLePlusCourt.size(); i++){
+            EmplacementPion epActuel = cheminLePlusCourt.get(i);
+            if(epPrec.ligne == epActuel.ligne) cpt++;
+            epPrec = epActuel;
+        }
+        if(cpt == cheminLePlusCourt.size()+1){
+            //System.out.println("Problème d'alignement ligne");
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Méthode qui vérifie si 2 pions en extrémité sont sur la même colonne
+     * @param cheminLePlusCourt
+     * Chemin à vérifier
+     * @return
+     * Booléen de décision
+     */
+    private boolean cheminMemeColonne(List<EmplacementPion> cheminLePlusCourt) {
+        int cpt = 1;
+        EmplacementPion epPrec = emplacementDepuisPion(pionSelected, emplacements);
+        for(int i = 0; i<cheminLePlusCourt.size(); i++){
+            EmplacementPion epActuel = cheminLePlusCourt.get(i);
+            if(epPrec.colonne == epActuel.colonne) cpt++;
+            epPrec = epActuel;
+        }
+        if(cpt == cheminLePlusCourt.size()+1){
+            //System.out.println("Problème d'alignement colonne");
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Méthode qui va tout d'abord définir quel chemin de la classe ApplicationSurakarta elle doit vérifier
+     *
+     * @param pionPrenant
+     * Pion qui cherche à prendre un autre pion
+     * @param pionMenace
+     * Pion qui est menacé d'être pris
+     * @return
+     * Booléen de décision
+     */
     private List<EmplacementPion> cheminLePlusCourt(Pion pionPrenant, Pion pionMenace) {
         List<EmplacementPion> cheminCroissant = new ArrayList<EmplacementPion>();
         List<EmplacementPion> cheminDecroissant = new ArrayList<EmplacementPion>();
@@ -466,9 +688,11 @@ public class ApplicationSurakarta extends javafx.application.Application impleme
                 return null;
         }
         max = chemin.size();
-        //Vérification bug de prise
+        //Vérification que le pion prenant se trouve bien sur un emplacement du chemin sélectionné
         if(emplacementDepuisPion(pionPrenant, chemin) == null) return null;
+
         //Tests du chemin sélectionné dans les 2 sens
+            //Sens croissant
         init = chemin.indexOf(emplacementDepuisPion(pionPrenant, chemin));
         if(emplacementDepuisPion(pionPrenant, chemin).liaisonArc && chemin.get(0).liaisonArc) passeParArc1 = true;
         for(int i = 0; i < max; i++){
@@ -488,6 +712,7 @@ public class ApplicationSurakarta extends javafx.application.Application impleme
             if(ep.liaisonArc) passeParArc1 = true;
             cheminCroissant.add(ep);
         }
+            //Sens décroissant
         init = chemin.indexOf(emplacementDepuisPion(pionPrenant, chemin));
         if(emplacementDepuisPion(pionPrenant, chemin).liaisonArc && chemin.get(0).liaisonArc) passeParArc2 = true;
         for(int i = 0; i < max; i++){
@@ -508,8 +733,8 @@ public class ApplicationSurakarta extends javafx.application.Application impleme
             cheminDecroissant.add(ep);
         }
         // Vérification qu'il n'y a pas déjà un chemin de valide
-        if(obstacleCroissant && obstacleDecroissant){
-            // On vérifie maintenant l'autre chemin car le pion est sur un croisement
+        if((obstacleCroissant && obstacleDecroissant) || (!obstacleCroissant && !passeParArc1) || (!obstacleDecroissant && !passeParArc2)){
+            // On vérifie maintenant l'autre chemin si le pion est sur un croisement de 2 chemins
             if(chemin.indexOf(emplacementDepuisPion(pionPrenant, chemin)) != chemin.lastIndexOf(emplacementDepuisPion(pionPrenant, chemin))){
                 //System.out.println("Croisement");
                 obstacleCroissant = false;
@@ -556,10 +781,17 @@ public class ApplicationSurakarta extends javafx.application.Application impleme
                 }
             }
         }
+
+        //System.out qui débug les tests réalisés
         //System.out.println("Test Chemin " + pionMenace.chemin + " fait avec comme résultat : obstacleCroissant(" + obstacleCroissant + ") et passeParArc1("+passeParArc1+"), obstacleDecroissant(" + obstacleDecroissant + ") et passeParArc2("+passeParArc2+")");
+
         if(obstacleCroissant && obstacleDecroissant) return null;
         if(!obstacleCroissant && passeParArc1){
-            if(!obstacleDecroissant && passeParArc2) return plusPetiteListe(cheminCroissant, cheminDecroissant);
+            if(!obstacleDecroissant && passeParArc2){
+                if(cheminMemeLigne(cheminCroissant) || cheminMemeColonne(cheminCroissant)) return cheminDecroissant;
+                if(cheminMemeLigne(cheminDecroissant) || cheminMemeColonne(cheminDecroissant)) return cheminCroissant;
+                return plusPetiteListe(cheminCroissant, cheminDecroissant);
+            }
             else {
                 if(cheminCroissant.get(0).p == pionMenace && !cheminCroissant.get(0).liaisonArc) return null;
                 return cheminCroissant;
@@ -572,6 +804,15 @@ public class ApplicationSurakarta extends javafx.application.Application impleme
         return null;
     }
 
+    /**
+     * Méthode qui retourne la plus petite liste des 2 listes en entrée
+     * @param cheminCroissant
+     * Liste 1
+     * @param cheminDecroissant
+     * Liste 2
+     * @return
+     * Liste 1 ou 2 selon la taille de celle-ci
+     */
     private List<EmplacementPion> plusPetiteListe(List<EmplacementPion> cheminCroissant, List<EmplacementPion> cheminDecroissant) {
         if(cheminCroissant == null && cheminDecroissant == null) return null;
         if(cheminCroissant != null && cheminDecroissant == null) return cheminCroissant;
@@ -580,32 +821,57 @@ public class ApplicationSurakarta extends javafx.application.Application impleme
         else return cheminCroissant;
     }
 
+    /**
+     * Méthode qui va enlever un pion du plateau
+     * @param pion
+     * Pion à supprimer
+     */
     private void detruirePion(Pion pion) {
         pion.equipe = 0;
         pion.ligne = -1;
         pion.colonne = -1;
         troupe.getChildren().remove(pion);
+        if(modeJeu == "JvO" && gp.equipeQuiJoue != ia.numEquipe){
+            ia.retirerPion(pion);
+        }
     }
 
+    /**
+     * Méthode d'handling du clic sur un pion
+     * Elle change la couleur du pion de l'ancien pion sélectionné puis
+     * défini le nouveau pion sélectionné tout en le mettant de couleur violette
+     * @param p
+     * Pion selectionné
+     */
     public void clicSurPion(Pion p){
+        if(gp.partieFini) primaryStage.close();
         //System.out.println(p.ToString()+" pressé");
         if(pionSelected != null){
             if(pionSelected.equipe == 1) pionSelected.setFill(equipe1);
             else if(pionSelected.equipe == 2) pionSelected.setFill(equipe2);
             else pionSelected.setFill(Color.TRANSPARENT);
         }
-        if(equipeQuiJoue == p.equipe){
+        if(gp.equipeQuiJoue == p.equipe){
             pionSelected = p;
             pionSelected.setFill(Color.PURPLE);
         }
     }
 
+    /**
+     * Méthode d'handling du clic sur emplacement
+     * @param ep
+     * Emplacement selectionné
+     */
     public void clicSurEmplacement(EmplacementPion ep){
+        if(gp.partieFini) primaryStage.close();
         //System.out.println(ep.ToString()+" pressé");
         if(pionSelected == null) return;
         emplacementPionSelected = ep;
     }
 
+    /**
+     * Méthode qui va mettre à jour les chemins de tous les pions se trouvant dans la liste emplacements
+     */
     void updateChemins(){
         for(EmplacementPion ep : emplacements){
             if(ep.p != null && cheminVert.contains(ep)) ep.p.chemin = 1;
@@ -616,7 +882,16 @@ public class ApplicationSurakarta extends javafx.application.Application impleme
         }
     }
 
-    Boolean deplacementPossible(Pion p, EmplacementPion ep){
+    /**
+     * Méthode qui regarde si un déplacement simple (de 1 autour du pion) est possible depuis un pion vers un emplacement
+     * @param p
+     * Pion à déplacer
+     * @param ep
+     * Emplacement visé
+     * @return
+     * Booléen de décision
+     */
+    public Boolean deplacementPossible(Pion p, EmplacementPion ep){
         if(emplacementPionSelected.p == null) {
             int diffLigne = p.ligne - ep.ligne, diffColonne = p.colonne - ep.colonne;
             if (abs(diffLigne) > 1 || abs(diffColonne) > 1){
@@ -629,30 +904,10 @@ public class ApplicationSurakarta extends javafx.application.Application impleme
         return false;
     }
 
-    private void changementEquipe() {
-        if(equipeQuiJoue == 0){
-            Random rnd = new Random();
-            int random;
-            do {
-                random = rnd.nextInt() % 2;
-            } while(random < 0);
-            equipeQuiJoue =  random + 1;
-            //System.out.println("Equipe " + equipeQuiJoue + " commmence !");
-        }
-        if(equipeQuiJoue == 1){
-            texte.setText("Equipe Bleue");
-            texte.setFill(equipe2);
-            cadre.setStroke(equipe2);
-            equipeQuiJoue = 2;
-        } else
-        if(equipeQuiJoue == 2){
-            texte.setText("Equipe Rouge");
-            texte.setFill(equipe1);
-            cadre.setStroke(equipe1);
-            equipeQuiJoue = 1;
-        }
-    }
-
+    /**
+     * Méthode qui vérifie si un déplacement est possible et gère l'appel à l'animation ainsi que la mise à jour de la couleur du pion
+     * En fin d'appel elle remet à jour les chemins des pions car un pion à peut-être changer de chemin
+     */
     public void deplacementPion(){
         if(emplacementPionSelected != null && pionSelected != null){
             if(deplacementPossible(pionSelected, emplacementPionSelected)){
@@ -661,8 +916,8 @@ public class ApplicationSurakarta extends javafx.application.Application impleme
                 pionSelected.ligne = emplacementPionSelected.ligne;
                 pionSelected.colonne = emplacementPionSelected.colonne;
                 emplacementPionSelected.p = pionSelected;
-                animationPion(); // Il bouge jusqu'à sa nouvelle position
                 updateCouleurPion(pionSelected);
+                animationPion(); // Il bouge jusqu'à sa nouvelle position
                 pionSelected = null; // On fait en sorte de devoir rechoisir ce même pion ou un nouveau pion
             }
             emplacementPionSelected = null; // On devra rechoisir un emplacement
@@ -670,14 +925,23 @@ public class ApplicationSurakarta extends javafx.application.Application impleme
         }
     }
 
+    /**
+     * Méthode simple qui met à jour la couleur d'un pion
+     * @param pionSelected
+     * Pion qui doit être mis à jour
+     */
     private void updateCouleurPion(Pion pionSelected) {
         if(pionSelected.equipe == 1) pionSelected.setFill(equipe1); // On reset sa couleur de base
         else if(pionSelected.equipe == 2) pionSelected.setFill(equipe2);
         else pionSelected.setFill(Color.TRANSPARENT);
     }
 
+    /**
+     * Méthode qui permet de réaliser l'animation de déplacement du pion
+     * Celle-ci ne sert que pour les déplacements simples (déplacement de 1)
+     */
     public void animationPion(){
-        long tempo = 500;
+        double tempo = tempsAnimation;
         Timeline timeline = new Timeline();
         int xdest = 250 + emplacementPionSelected.colonne * 100;
         int ydest = 250 + espacement + emplacementPionSelected.ligne * 100;
@@ -687,32 +951,32 @@ public class ApplicationSurakarta extends javafx.application.Application impleme
         timeline.getKeyFrames().add(bougePion);
         timeline.play();
         pionSelected.setAnimation(timeline);
-        changementEquipe();
+        gp.changementEquipe();
     }
 
+    /**
+     * Méthode qui permet de réaliser l'animation de déplacement du pion
+     * Celle-ci sert lorsqu'un pion en prend un autre
+     */
     public void animationPionPrise(){
         final Path path = generatePath();
         final PathTransition transition = generatePathTransition(path);
         transition.play();
+        removePionEmplacement(pionSelected);
         pionSelected.ligne = emplacementPionSelected.ligne;
         pionSelected.colonne = emplacementPionSelected.colonne;
         emplacementPionSelected.p = pionSelected;
         pionSelected.updatePos();
-        changementEquipe();
+        gp.prisePion();
+        gp.changementEquipe();
     }
 
-    private PathTransition generatePathTransition(final Path path){
-        double tempo = 1200 * pionSelected.cheminASuivre.size();
-        //System.out.println("Size = " + pionSelected.cheminASuivre.size());
-        final PathTransition pathTransition = new PathTransition();
-        pathTransition.setDuration(Duration.millis(tempo));
-        pathTransition.setPath(path);
-        pathTransition.setNode(pionSelected);
-        pathTransition.setCycleCount(1);
-        pathTransition.setAutoReverse(false);
-        return pathTransition;
-    }
-
+    /**
+     * Méthode liée à la méthode animationPionPrise qui va générer un Path selon le chemin qu'un pion a à suivre
+     * Elle permet de stocker toutes les LineTo et ArcTo que notre pion va devoir suivre
+     * @return
+     * Path pour le pion
+     */
     private Path generatePath(){
         int x = 250 + pionSelected.colonne * 100;
         int y = 250 + espacement + pionSelected.ligne * 100;
@@ -726,7 +990,7 @@ public class ApplicationSurakarta extends javafx.application.Application impleme
             EmplacementPion ep = pionSelected.cheminASuivre.get(i);
             x = 250 + ep.colonne * 100;
             y = 250 + espacement + ep.ligne * 100;
-            if(ep.liaisonArc && (anciennePosition.liaisonArc || i == tailleChemin-1 || tailleChemin == 1)){
+            if(ep.liaisonArc && (anciennePosition.liaisonArc || tailleChemin == 1)){
                 // Cas où l'on doit faire une animation d'arc
                 ArcTo arcTo = new ArcTo();
                 arcTo.setX(x);
@@ -758,6 +1022,37 @@ public class ApplicationSurakarta extends javafx.application.Application impleme
         return path;
     }
 
+    /**
+     * Méthode liée à la méthode animationPionPrise qui va générer un PathTransition selon le chemin qu'un pion a à suivre$
+     * Elle définit que la durée que le pion va mettre à faire ce chemin ainsi que le chemin à suivre
+     * On y spécifie l'objet affecté, le nombre de cycle qui est toujours de 1 ainsi que le fait qu'il ne doit pas faire demi-tour
+     * @param path
+     * Path déjà rempli
+     * @return
+     * PathTransition pour le pion
+     */
+    private PathTransition generatePathTransition(final Path path){
+        double tempo;
+        if(pionSelected.cheminASuivre.size() > 0) tempo = tempsAnimation * pionSelected.cheminASuivre.size();
+        else tempo = tempsAnimation + 200;
+        //System.out.println("Size = " + pionSelected.cheminASuivre.size());
+        final PathTransition pathTransition = new PathTransition();
+        pathTransition.setDuration(Duration.millis(tempo));
+        pathTransition.setPath(path);
+        pathTransition.setNode(pionSelected);
+        pathTransition.setCycleCount(1);
+        pathTransition.setAutoReverse(false);
+        return pathTransition;
+    }
+
+    /**
+     * Méthode permettant de définir dans quel sens la rotation doit se faire lorsqu'un pion passe par un arc
+     * Chaque déplacement autour de l'arc dispose d'un sens bien défini donc il a suffit de spécifier pour chacun le quel prendre
+     * @param arcTo
+     * ArcTo qui recevra le sens de rotation
+     * @param ep
+     * Emplacement vers lequel il se dirige
+     */
     private void definitionSensRotation(ArcTo arcTo, EmplacementPion ep) {
         if(ep.ligne == 0){
             if(ep.colonne == 1 || ep.colonne == 2){
@@ -809,6 +1104,14 @@ public class ApplicationSurakarta extends javafx.application.Application impleme
         }
     }
 
+    /**
+     * Méthode qui définit quel chemin le pion va-t-il suivre
+     * Pour cela on regarde le nombre de cases par lequel passe le plus le cheminASuivre
+     * @param cheminASuivre
+     * Chemin que le pion doit suivre
+     * @return
+     * Numéro du chemin
+     */
     private int numChemin(List<EmplacementPion> cheminASuivre) {
         int cptCheminVert = 0, cptCheminJaune = 0;
         for(EmplacementPion ep : cheminASuivre){
@@ -837,6 +1140,11 @@ public class ApplicationSurakarta extends javafx.application.Application impleme
         else return 1;
     }
 
+    /**
+     * Main qui lance l'application après compilation
+     * @param args
+     * Args par défaut
+     */
     public static void main(String[] args) {
         launch(args);
     }
