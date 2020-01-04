@@ -61,6 +61,8 @@ public class Pion extends Circle {
 
     /**
      * Méthode nécessaire pour les animations
+     * @return
+     * Timeline à récupérer
      */
     public Timeline getAnimation()
     {
@@ -69,6 +71,8 @@ public class Pion extends Circle {
 
     /**
      * Méthode nécessaire pour les animations
+     * @param animation
+     * Timeline à enregistrer
      */
     public void setAnimation(Timeline animation)
     {

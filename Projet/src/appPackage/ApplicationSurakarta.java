@@ -597,12 +597,14 @@ public class ApplicationSurakarta extends javafx.application.Application impleme
         if(cheminLePlusCourt == null) return false;
         if(cheminLePlusCourt.size() > 1 && (cheminMemeLigne(cheminLePlusCourt) || cheminMemeColonne(cheminLePlusCourt))) return false;
 
+        /*
         //Affichage du chemin le plus court
         System.out.print("cheminLePlusCourt - [");
         for(EmplacementPion ep : cheminLePlusCourt){
             System.out.print(" " + ep.toString() + "\n");
         }
         System.out.println("]");
+        */
 
         pionPrenant.cheminASuivre = cheminLePlusCourt;
         return true;
